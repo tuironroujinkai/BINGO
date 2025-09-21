@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ビンゴ台紙ジェネレーター（3×3）</title>
+  <style>
+    :root{
+      --bg: #f3f2f2;
+      --accent: #e82135; /* タイトルとBINGO文字 */
+      --fg: #0a2948;    /* 文字色と罫線 */
+    }
+    html,body{height:100%;}
+    body{
+      margin:0;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      background:var(--bg);
+      color:var(--fg);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      box-sizing:border-box;
+    }
+
+    .container{
+      width:min(560px, 96vw);
+      text-align:center;
+    }
+    h1{
+      margin:0 0 12px 0;
+      color:var(--accent);
+      font-size:1.6rem;
+      letter-spacing:0.06em;
+    }
+    .controls{
+      margin-bottom:18px;
+      display:flex;
+      gap:12px;
+      justify-content:center;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    button{
+      background:var(--fg);
+      color:var(--bg);
+      border:2px solid var(--fg);
+      padding:8px 14px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button.secondary{
+      background:transparent;
+      color:var(--fg);
+    }
+
+    /* カード */
+    .card-wrap{
+      display:flex;
+      justify-content:center;
+    }
+    .card{
+      width:360px;
+      aspect-ratio:1/1;
+      background:white;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      grid-template-rows:repeat(3,1fr);
+      gap:0;
+      border:6px solid var(--fg);
+      box-shadow:0 6px 20px rgba(10,41,72,0.08);
+    }
+    .cell{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:1.4rem;
+      font-weight:700;
+      border-left:2px solid var(--fg);
+      border-top:2px solid var(--fg);
+      color:var(--fg);
+      padding:6px;
+      box-sizing:border-box;
+    }
+    /* 外周の罫線を整える（右下の2辺の罫線が無いと見た目が良くないので調整） */
+    .card > .cell:nth-child(3),
+    .card > .cell:nth-child(6),
+    .card > .cell:nth-child(9){ border-right:2px solid var(--fg); }
+    .card > .cell:nth-child(7),
+    .card > .cell:nth-child(8),
+    .card > .cell:nth-child(9){ border-bottom:2px solid var(--fg); }
+
+    .cell.center{
+      color:var(--accent);
+      font-size:1.2rem;
+      letter-spacing:0.2em;
+      background:transparent;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-transform:uppercase;
+    }
+
+    .number{
+      font-size:1.6rem;
+      line-height:1;
+    }
+
+    .note{
+      margin-top:10px;
+      font-size:0.9rem;
+      color:var(--fg);
+      opacity:0.9;
+    }
+
+    @media print{
+      body{background:white}
+      .controls{display:none}
+      .container{width:100%;}
+      .card{width:200mm; aspect-ratio:1/1; border-width:4px}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ビンゴ台紙（3×3）</h1>
+    <div class="controls">
+      <button id="generateBtn">カード発行</button>
+      <button id="printBtn" class="secondary">印刷</button>
+      <div style="min-width:12px"></div>
+    </div>
+
+    <div class="card-wrap">
+      <div id="card" class="card" aria-label="ビンゴカード" role="grid">
+        <!-- 9 cells inserted by JS -->
+      </div>
+    </div>
+    <div class="note">中央は <span style="color:var(--accent);font-weight:800;">B I N G O</span>。その他の8マスは1〜50の重複なしの乱数です。</div>
+  </div>
+
+  <script>
+    // 1..50 の配列を作る
+    function range(n){
+      const a = [];
+      for(let i=1;i<=n;i++) a.push(i);
+      return a;
+    }
+    // フィッシャー–イェーツでシャッフル
+    function shuffle(arr){
+      const a = arr.slice();
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    const cardEl = document.getElementById('card');
+    const generateBtn = document.getElementById('generateBtn');
+    const printBtn = document.getElementById('printBtn');
+
+    function makeCard(){
+      // 1..50 をシャッフルして8個取り出す
+      const nums = shuffle(range(50)).slice(0,8);
+      cardEl.innerHTML = '';
+      // 9マスを順に埋める。真ん中（index 4）はBINGO
+      let numIndex = 0;
+      for(let i=0;i<9;i++){
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.setAttribute('role','gridcell');
+        cell.setAttribute('aria-posinset', String(i+1));
+        if(i===4){
+          cell.classList.add('center');
+          // 真ん中は B I N G O を縦に・スペースを入れて見せる
+          // ここは文字色とスタイルはデザインに合わせる
+          const span = document.createElement('div');
+          span.textContent = 'BINGO';
+          span.style.fontWeight = '900';
+          span.style.fontSize = '1.1rem';
+          cell.appendChild(span);
+        } else {
+          const span = document.createElement('div');
+          span.className = 'number';
+          span.textContent = nums[numIndex++];
+          cell.appendChild(span);
+        }
+        cardEl.appendChild(cell);
+      }
+    }
+
+    // 初期表示
+    makeCard();
+
+    generateBtn.addEventListener('click', ()=>{
+      makeCard();
+    });
+
+    printBtn.addEventListener('click', ()=>{
+      window.print();
+    });
+  </script>
+</body>
+</html>
